@@ -1,8 +1,8 @@
 # -*- coding:utf8 -*-
 import os
 import random
+import traceback
 import webbrowser
-from functools import partial
 
 from threading import Thread
 
@@ -29,18 +29,16 @@ from kivy.core.window import Window
 import data_capture_lessons
 import data_lessons
 
+from indic_transliteration import sanscript, xsanscript
+from indic_transliteration.sanscript import transliterate
 
-
-
-
+Window.softinput_mode = 'below_target'
 
 class LessonListScreen(Screen):
     container = ObjectProperty(None)
     def __init__(self,**kwargs):
         super(LessonListScreen, self).__init__(**kwargs)
         Window.bind(on_keyboard=self.on_key)
-
-        print("Hello")
         Clock.schedule_once(self.add_buttons,1)
 
     def on_key(self, window, key, *args):
@@ -51,13 +49,25 @@ class LessonListScreen(Screen):
         self.list_lessons = data_capture_lessons.get_Lessons()
         self.container.bind(minimum_height=self.container.setter('height'))
         for element in self.list_lessons:
-            button = Button(text=element[1],font_name='akshar.ttf',background_color=[0.76,0.83,0.86,0.8],pos_hint={'top': 1},size_hint_y=None,size_hint_x=1)
-            button.on_release = lambda instance=button, a=element[0]: self.switch_to_title(instance, a)
+            if element[2] is None or element[2] == "" or element[2] == "English":
+                font_name = "Caveat-Bold.ttf"
+            else:
+                font_name = "unifont.ttf"
+            button = Button(text=element[1],font_name=font_name,font_size="25sp",background_color=[0.76,0.83,0.86,0.8],pos_hint={'top': 1},size_hint_y=None,size_hint_x=1)
+            button.on_release = lambda instance=button, a=element[0],b=element[2]: self.switch_to_title(instance, a,b)
             self.container.add_widget(button)
 
-    def switch_to_title(self,i,a):
+    def switch_to_title(self,i,a,b):
+        if b is None or b == "" or b == "English":
+            self.manager.set_font("Caveat-Bold.ttf")
+            self.manager.set_lang("English")
+        else:
+            self.manager.set_font("unifont.ttf")
+            self.manager.set_lang("Hindi")
         self.selected_lesson = a
         self.manager.current ="title"
+        self.manager.transition.direction = 'left'
+
     def launch_popup(self):
         show = ImportPop()
         self.popupWindow = Popup(title="Import Mini Lesson", content=show,
@@ -188,15 +198,18 @@ class LessonTitleScreen(Screen):
     text_label_2 = StringProperty()
     text_image= StringProperty()
     animation_count = NumericProperty()
+    font_name = StringProperty("Caveat-Bold.ttf")
 
     def __init__(self,**kwargs):
         super(LessonTitleScreen,self).__init__(**kwargs)
         self.speak_flag = 0
         Window.bind(on_keyboard=self.on_key)
 
+
     def on_key(self, window, key, *args):
         if key == 27:  # the esc key
             if self.manager.current == 'title' :
+                self.manager.transition.direction = 'right'
                 self.manager.current = 'lessons'
                 return True
 
@@ -238,6 +251,7 @@ class LessonTitleScreen(Screen):
 
     def on_enter(self):
         lessonid = self.manager.get_screen('lessons').selected_lesson
+        self.font_name = self.manager.get_font()
         title, title_image, title_running_notes = data_capture_lessons.get_title_info(lessonid)
         self.text_label_1 = title_running_notes
         self.text_label_2 = title
@@ -267,6 +281,7 @@ class LessonFactualScreen(Screen):
     text_image_2 = StringProperty()
     text_image_3 = StringProperty()
     text_image_display = StringProperty()
+    font_name = StringProperty("Caveat-Bold.ttf")
 
     text_term_description_1 = StringProperty()
     text_term_description_2  = StringProperty()
@@ -278,6 +293,7 @@ class LessonFactualScreen(Screen):
         Window.bind(on_keyboard=self.on_key)
 
     def on_enter(self):
+        self.font_name = self.manager.get_font()
         lessonid = self.manager.get_screen('lessons').selected_lesson
         textimage_1, textimage_2, textimage_3 = data_capture_lessons.get_fact_images(lessonid)
         text_term_1, text_term_2, text_term_3 = data_capture_lessons.get_fact_terms(lessonid)
@@ -313,6 +329,7 @@ class LessonFactualScreen(Screen):
     def on_key(self, window, key, *args):
         if key == 27:  # the esc key
             if self.manager.current == 'factual' :
+                self.manager.transition.direction = 'right'
                 self.manager.current = 'title'
                 return True
 
@@ -388,6 +405,7 @@ class LessonApplyScreen(Screen):
     text_label_1 = StringProperty("Dynamic Text"+str(random.randint(1,100)))
     text_label_2 = StringProperty("test.png")
     steps = ObjectProperty(None)
+    font_name = StringProperty("Caveat-Bold.ttf")
     def __init__(self,**kwargs):
         super(LessonApplyScreen, self).__init__(**kwargs)
         Window.bind(on_keyboard=self.on_key)
@@ -396,12 +414,13 @@ class LessonApplyScreen(Screen):
     def on_key(self, window, key, *args):
         if key == 27:  # the esc key
             if self.manager.current == 'apply' :
+                self.manager.transition.direction = 'right'
                 self.manager.current = 'factual'
                 return True
 
 
     def on_enter(self):
-
+        self.font_name = self.manager.get_font()
         self.lessonid = self.manager.get_screen('lessons').selected_lesson
         self.number_of_steps = data_capture_lessons.get_number_of_steps(self.lessonid)
         self.step_list = data_capture_lessons.get_description_list(self.lessonid)
@@ -425,16 +444,18 @@ class LessonApplyScreen(Screen):
 
 
 
-        for i in range(self.number_of_steps):
-            button = Button(text=self.step_list[i],font_name='NotoSans-Regular.ttf', size_hint_y=None,size_hint_x=1,height="70sp"
-                            ,background_color=[0.76,0.83,0.86,0.8],text_size=(1.5*Metrics.dpi, None),font_size='18sp')
+        for i in range(8):
+            if self.step_list[i] is None or self.step_list[i] == "":
+                break
+            button = Button(text=self.step_list[i],font_name=self.font_name, size_hint_y=None,size_hint_x=1,height="70sp"
+                            ,background_color=[0.76,0.83,0.86,0.8],text_size=(2.0*Metrics.dpi, None),font_size='25sp')
 
             self.button_list.append(button)
             button.on_release = lambda instance=button,a =i: self.add_image(instance,a)
             self.steps.add_widget(button)
-        button1 = Button(text="View All", size_hint_y=None, size_hint_x=1, height="70sp"
-                        , background_color=[0.76, 0.83, 0.86, 0.8], text_size=(1.5 * Metrics.dpi, None),
-                        font_size='18sp')
+        button1 = Button(text="View All",font_name=self.font_name, size_hint_y=None, size_hint_x=1, height="70sp"
+                        , background_color=[0.76, 0.83, 0.86, 0.8], text_size=(2.0 * Metrics.dpi, None),
+                        font_size='20sp')
         button1.on_release =  self.add_all_images
         self.steps.add_widget(button1)
 
@@ -465,7 +486,7 @@ class LessonApplyScreen(Screen):
     def add_image(self,instance,a,*args):
         print(a)
         print(instance)
-        if a < self.number_of_steps-1:
+        if a < len(self.button_list)-1:
             button = self.button_list[a+1]
             button.disabled = False
         imagepath = "Lessons/Lesson" + str(self.lessonid) + "/images/"
@@ -491,11 +512,14 @@ class LessonApplyScreen(Screen):
 
 class LessonWhiteboardScreen(Screen):
     text_image_1 = StringProperty()
+    font_name = StringProperty("Caveat-Bold.ttf")
     def __init__(self,**kwargs):
         super(LessonWhiteboardScreen,self).__init__(**kwargs)
+        Window.bind(on_keyboard=self.on_key)
 
 
     def on_enter(self, *args):
+        self.font_name = self.manager.get_font()
         self.lessonid = self.manager.get_screen('lessons').selected_lesson
         self.filename_pfix = "Lessons" + os.path.sep + "Lesson" + str(
                      self.lessonid) + os.path.sep + "images" + os.path.sep
@@ -506,10 +530,6 @@ class LessonWhiteboardScreen(Screen):
             self.text_image_1 = self.filename_pfix+filename
         else:
             self.text_image_1 = "placeholder.png"
-
-
-
-
 
     def set_next_screen(self):
         if self.manager.current == 'whiteboard':
@@ -522,10 +542,17 @@ class LessonWhiteboardScreen(Screen):
             self.manager.transition.direction = 'right'
             self.manager.current = self.manager.previous()
 
+    def on_key(self, window, key, *args):
+        if key == 27:  # the esc key
+            if self.manager.current == 'whiteboard':
+                self.manager.transition.direction = 'right'
+                self.manager.current = 'apply'
+                return True
+
 class LessonNotesScreen(Screen):
     text_label_1 = StringProperty()
 
-
+    font_name = StringProperty("Caveat-Bold.ttf")
     def __init__(self, **kwargs):
         super(LessonNotesScreen, self).__init__(**kwargs)
         Window.bind(on_keyboard=self.on_key)
@@ -533,10 +560,12 @@ class LessonNotesScreen(Screen):
     def on_key(self, window, key, *args):
         if key == 27:  # the esc key
             if self.manager.current == 'notes':
+                self.manager.transition.direction = 'right'
                 self.manager.current = 'apply'
                 return True
 
     def on_enter(self):
+        self.font_name = self.manager.get_font()
         self.lessonid = self.manager.get_screen('lessons').selected_lesson
         txt_notes = data_capture_lessons.get_notes(self.lessonid)
         if (txt_notes is None):
@@ -552,7 +581,7 @@ class LessonNotesScreen(Screen):
 
     def set_previous_screen(self):
         if self.manager.current == 'notes':
-            self.manager.transition.direction = 'left'
+            self.manager.transition.direction = 'right'
             self.manager.current = 'whiteboard'
 
 
@@ -563,6 +592,7 @@ class LessonAssessScreen(Screen):
 
         text_label_1 = StringProperty()
         text_label_2 = StringProperty()
+        font_name = StringProperty("Caveat-Bold.ttf")
         steps = ObjectProperty(None)
 
         def __init__(self, **kwargs):
@@ -572,19 +602,28 @@ class LessonAssessScreen(Screen):
         def on_key(self, window, key, *args):
             if key == 27:  # the esc key
                 if self.manager.current == 'assess':
+                    self.manager.transition.direction = 'right'
                     self.manager.current = 'apply'
                     return True
 
         def on_enter(self):
+            self.font_name = self.manager.get_font()
             self.lessonid = self.manager.get_screen('lessons').selected_lesson
             self.text_label_1, self.text_label_2 = data_capture_lessons.get_questions_answer(self.lessonid)
             self.formlink = data_capture_lessons.get_formlink(self.lessonid)
-            if self.formlink is not None and self.formlink != "":
+            if self.formlink is not None and self.formlink != "" and hasattr(self,"form_button") == False:
                 self.form_button = Button(text="launch",size_hint=(1,0.1),background_color = [0.76,0.83,0.86,0.8],
                                           on_release = self.launch_form)
                 self.ids.assess.add_widget(self.form_button)
         def launch_form(self,*args):
             webbrowser.open(self.formlink)
+
+        def on_assess_text(self, wid, text):
+            if text is not None and len(text) > 0 and text[-1] == " " and self.manager.get_lang() != "English":
+                text = text.strip()
+                output = transliterate(text, sanscript.HK, sanscript.DEVANAGARI)
+                output = output + " "
+                wid.text = output
 
         def on_save(self):
             ret = data_capture_lessons.set_answer(self.lessonid,self.text_label_2)
@@ -601,8 +640,8 @@ class LessonAssessScreen(Screen):
 
         def set_previous_screen(self):
             if self.manager.current == 'assess':
-                self.manager.transition.direction = 'left'
-                self.manager.current = 'apply'
+                self.manager.transition.direction = 'right'
+                self.manager.current = 'notes'
 
 
 
@@ -610,7 +649,18 @@ class Popups(BoxLayout):
     pass
 
 class ScreenManagement(ScreenManager):
-    pass
+    lesson_font = StringProperty()
+    def set_font(self, text):
+        self.lesson_font = text
+
+    def get_font(self):
+        return self.lesson_font
+
+    def set_lang(self, text):
+        self.lesson_lang = text
+
+    def get_lang(self):
+        return self.lesson_lang
 class MagicRoomApp(App):
 
     def build(self):
@@ -636,7 +686,11 @@ def open_url(url):
 
 class AndroidBrowser(object):
     def open(self, url, new=0, autoraise=True):
-        open_url(url)
+        try:
+            open_url(url)
+        except:
+            traceback.print_exc()
+            print("URL open exception")
 
     def open_new(self, url):
         open_url(url)
