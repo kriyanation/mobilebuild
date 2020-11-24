@@ -38,7 +38,7 @@
             multiline: False
             size_hint_x:0.3
             size_hint_y:0.04
-            font_size:'25sp'
+            font_size:'20sp'
 
         Label:
             text:"Class ID"
@@ -51,7 +51,7 @@
             multiline: False
             size_hint_x:0.3
             size_hint_y:0.04
-            font_size:'25sp'
+            font_size:'20sp'
 
         Label:
             text:"Lesson ID"
@@ -63,7 +63,7 @@
             multiline: False
             size_hint_x:0.3
             size_hint_y:0.04
-            font_size:'25sp'
+            font_size:'20sp'
 
 
 
@@ -89,6 +89,7 @@
     halign: "left"
     text_size:(300,None)
     font_name:"unifont.ttf"
+    background_color:[0.76,0.83,0.86,0.8]
 
 <DeletePop>
     #text_lessoid: user.text
@@ -421,7 +422,7 @@
                 ActionPrevious:
                     with_previous: True
                     on_release: root.set_previous_screen()
-
+                    app_icon: "logo_bg_small.png"
                 ActionButton:
                     text: ' Next '
                     on_release:root.set_next_screen()

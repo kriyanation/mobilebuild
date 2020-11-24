@@ -31,8 +31,13 @@ import data_lessons
 
 from indic_transliteration import sanscript, xsanscript
 from indic_transliteration.sanscript import transliterate
+from kivy.utils import platform
 
 Window.softinput_mode = 'below_target'
+from kivy.config import Config
+if platform !='android':
+    Config.remove_option('input','%(name)s')
+    print (Config.items('input'))
 
 class LessonListScreen(Screen):
     container = ObjectProperty(None)
@@ -442,19 +447,22 @@ class LessonApplyScreen(Screen):
         self.steps.clear_widgets()
 #        self.images.clear_widgets()
 
-
+        if platform != 'android':
+            textsize = (600,None)
+        else:
+            textsize = (2.0*Metrics.dpi, None)
 
         for i in range(8):
             if self.step_list[i] is None or self.step_list[i] == "":
                 break
             button = Button(text=self.step_list[i],font_name=self.font_name, size_hint_y=None,size_hint_x=1,height="70sp"
-                            ,background_color=[0.76,0.83,0.86,0.8],text_size=(2.0*Metrics.dpi, None),font_size='25sp')
+                            ,background_color=[0.76,0.83,0.86,0.8],text_size=textsize,font_size='25sp')
 
             self.button_list.append(button)
             button.on_release = lambda instance=button,a =i: self.add_image(instance,a)
             self.steps.add_widget(button)
         button1 = Button(text="View All",font_name=self.font_name, size_hint_y=None, size_hint_x=1, height="70sp"
-                        , background_color=[0.76, 0.83, 0.86, 0.8], text_size=(2.0 * Metrics.dpi, None),
+                        , background_color=[0.76, 0.83, 0.86, 0.8], text_size=textsize,
                         font_size='20sp')
         button1.on_release =  self.add_all_images
         self.steps.add_widget(button1)
@@ -662,6 +670,8 @@ class ScreenManagement(ScreenManager):
     def get_lang(self):
         return self.lesson_lang
 class MagicRoomApp(App):
+    def on_pause(self):
+        return True
 
     def build(self):
         os.system("export KIVY_TEXT = pango")
@@ -683,6 +693,7 @@ def open_url(url):
     browserIntent.setData(Uri.parse(url))
     currentActivity = cast('android.app.Activity', activity)
     currentActivity.startActivity(browserIntent)
+
 
 class AndroidBrowser(object):
     def open(self, url, new=0, autoraise=True):
